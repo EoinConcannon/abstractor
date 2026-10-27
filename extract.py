@@ -134,8 +134,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract page-numbered text from a research paper PDF.")
     parser.add_argument("pdf", help="path to the PDF")
     parser.add_argument("--debug", action="store_true", help="print filtered header/footer text")
+    parser.add_argument("--out", help="write the extracted text to this file (UTF-8)")
     args = parser.parse_args()
 
-    for p in extract_pages(args.pdf, debug=args.debug):
-        print(f"\n===== PAGE {p['page']} =====\n")
-        print(p["text"])
+    pages = extract_pages(args.pdf, debug=args.debug)
+    output = "".join(f"\n===== PAGE {p['page']} =====\n\n{p['text']}\n" for p in pages)
+
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as f:
+            f.write(output)
+        print(f"Wrote {len(pages)} pages to {args.out}")
+    else:
+        print(output)
