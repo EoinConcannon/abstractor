@@ -25,7 +25,12 @@ class LLMClient:
         if missing:
             raise RuntimeError(f"Missing in .env: {', '.join(missing)}")
 
-        self._client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+        self._client = OpenAI(
+            api_key=self.api_key,
+            base_url=self.base_url,
+            timeout=60,      # give up after 60s instead of 10 minutes
+            max_retries=0,   # we do our own retries below, and print them
+        )
 
     def complete(self, system: str, user: str, temperature: float = 0.2) -> str:
         """Send one system + user message and return the reply text.
