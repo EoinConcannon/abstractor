@@ -4,6 +4,7 @@ Usage:
     python extract.py papers/my_paper.pdf
     python extract.py papers/my_paper.pdf --debug     # also shows what was filtered out
 """
+import unicodedata
 import argparse
 import re
 from collections import Counter
@@ -21,7 +22,8 @@ def normalise(text: str) -> str:
 
 def clean_text(text: str) -> str:
     """Join hyphenated line breaks and collapse whitespace."""
-    text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)  # "meth-\nod" -> "method"
+    text = unicodedata.normalize("NFKC", text)   # "ﬁeld" -> "field", "ﬂ" -> "fl"
+    text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
     return " ".join(text.split())
 
 

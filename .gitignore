@@ -2,4 +2,6 @@
 .venv/
 papers/
 __pycache__/
-output.txt
+output*.txt
+data/
+summaries/
