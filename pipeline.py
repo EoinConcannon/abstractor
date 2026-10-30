@@ -4,6 +4,7 @@ Usage:
     python pipeline.py papers/ca_rag.pdf            # run everything (reuses saved stages)
     python pipeline.py papers/ca_rag.pdf --force    # redo the summary even if one is saved
     python pipeline.py papers/ca_rag.pdf --no-llm   # only extract + sections (no API call)
+    python pipeline.py papers/ca_rag.pdf --refresh  # redo extraction + sections (keeps old summaries)
 
 Saves to data/<paper name>/:
     pages.json      extracted text per page
@@ -34,21 +35,21 @@ def paper_dir(pdf_path: str) -> Path:
     return d
 
 
-def _load_or_build(path: Path, build):
-    if path.exists():
+def _load_or_build(path: Path, build, refresh: bool = False):
+    if path.exists() and not refresh:
         return json.loads(path.read_text(encoding="utf-8"))
     data = build()
     path.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
     return data
 
 
-def get_pages(pdf_path: str):
-    return _load_or_build(paper_dir(pdf_path) / "pages.json", lambda: extract_pages(pdf_path))
+def get_pages(pdf_path: str, refresh: bool = False):
+    return _load_or_build(paper_dir(pdf_path) / "pages.json", lambda: extract_pages(pdf_path), refresh)
 
 
-def get_sections(pdf_path: str):
+def get_sections(pdf_path: str, refresh: bool = False):
     pages = get_pages(pdf_path)
-    return _load_or_build(paper_dir(pdf_path) / "sections.json", lambda: split_sections(pages))
+    return _load_or_build(paper_dir(pdf_path) / "sections.json", lambda: split_sections(pages), refresh)
 
 
 def prompt_hash() -> str:
@@ -150,12 +151,13 @@ def main():
     parser.add_argument("pdf")
     parser.add_argument("--force", action="store_true", help="regenerate the summary")
     parser.add_argument("--no-llm", action="store_true", help="stop after extract + sections")
+    parser.add_argument("--refresh", action="store_true", help="redo extraction and sections, ignoring saved ones")
     args = parser.parse_args()
 
-    pages = get_pages(args.pdf)
+    pages = get_pages(args.pdf, refresh=args.refresh)
     print(f"[1/4] Extracted {len(pages)} pages -> {paper_dir(args.pdf) / 'pages.json'}")
 
-    sections = get_sections(args.pdf)
+    sections = get_sections(args.pdf, refresh=args.refresh)
     print("[2/4] Sections found:")
     for s in sections:
         nums = [p["page"] for p in s["paragraphs"]]

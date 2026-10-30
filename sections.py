@@ -45,30 +45,59 @@ def match_heading(paragraph: str):
     return None
 
 
+DROP_CAP = re.compile(r"^[A-Z]+(?=\s)")        # "ARGE language models..." (rest of a drop-cap word)
+SUBSECTION = re.compile(r"^[A-Z]\.\s")         # "A. Chunking Strategy"
+NUMBERED_TITLE = re.compile(r"^[IVX]+\.\s")
+
+
+def _is_heading_continuation(para: str) -> bool:
+    """A short ALL-CAPS paragraph right after a heading is its second line ("ANALYSIS")."""
+    return (
+        not re.search(r"[a-z]", para)
+        and len(para) <= 80
+        and not SUBSECTION.match(para)
+        and match_heading(para) is None
+    )
+
+
 def split_sections(pages):
     """pages: output of extract_pages(). Returns a list of sections:
     {"title": str, "paragraphs": [{"page": int, "text": str}, ...]}
     Everything from REFERENCES onward is dropped.
     """
+    paras = [(p["page"], para.strip())
+             for p in pages for para in p["text"].split("\n\n") if para.strip()]
     sections = [{"title": "FRONT MATTER", "paragraphs": []}]
 
-    for page in pages:
-        for para in page["text"].split("\n\n"):
-            para = para.strip()
+    i = 0
+    while i < len(paras):
+        page, para = paras[i]
+        i += 1
+
+        heading = match_heading(para)
+        if heading:
+            title, rest = heading
+            if title == STOP_TITLE:
+                return _tidy(sections)
+
+            if not rest and NUMBERED_TITLE.match(title) and i < len(paras):
+                nxt = paras[i][1]
+                dropcap = re.match(r"^(?P<head>.*\S)\s+(?P<cap>[A-Z])$", title)
+                if dropcap and DROP_CAP.match(nxt):
+                    # "I. INTRODUCTION L" + "ARGE language models" -> "LARGE language models"
+                    title, rest = dropcap.group("head"), dropcap.group("cap") + nxt
+                    i += 1
+                elif _is_heading_continuation(nxt):
+                    # "IV. ONLINE SELECTION ... AND" + "ANALYSIS" -> one title
+                    title = f"{title} {nxt}"
+                    i += 1
+
+            sections.append({"title": title, "paragraphs": []})
+            para = rest
             if not para:
                 continue
 
-            heading = match_heading(para)
-            if heading:
-                title, rest = heading
-                if title == STOP_TITLE:
-                    return _tidy(sections)
-                sections.append({"title": title, "paragraphs": []})
-                para = rest
-                if not para:
-                    continue
-
-            sections[-1]["paragraphs"].append({"page": page["page"], "text": para})
+        sections[-1]["paragraphs"].append({"page": page, "text": para})
 
     return _tidy(sections)
 
