@@ -7,7 +7,7 @@ import os
 import time
 
 from dotenv import load_dotenv
-from openai import OpenAI, RateLimitError
+from openai import APIConnectionError, InternalServerError, OpenAI, RateLimitError
 
 load_dotenv()
 
@@ -35,8 +35,9 @@ class LLMClient:
     def complete(self, system: str, user: str, temperature: float = 0.2) -> str:
         """Send one system + user message and return the reply text.
 
-        Free tiers return HTTP 429 when you go over the rate limit, so we wait
-        and retry with exponential backoff instead of crashing.
+        Free tiers are flaky: 429 means you hit a rate limit, 503 means the
+        provider is overloaded. Both are temporary, so wait and retry with
+        exponential backoff instead of crashing.
         """
         for attempt in range(self.max_retries):
             try:
@@ -49,10 +50,10 @@ class LLMClient:
                     ],
                 )
                 return response.choices[0].message.content or ""
-            except RateLimitError:
+            except (RateLimitError, InternalServerError, APIConnectionError) as e:
                 if attempt == self.max_retries - 1:
                     raise
                 wait = 10 * 2 ** attempt
-                print(f"Rate limited, waiting {wait}s (attempt {attempt + 1}/{self.max_retries})...")
+                print(f"{type(e).__name__}, waiting {wait}s (attempt {attempt + 1}/{self.max_retries})...")
                 time.sleep(wait)
         return ""

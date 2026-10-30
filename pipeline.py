@@ -79,7 +79,7 @@ def get_summary(pdf_path: str, llm, force: bool = False):
 # ---------- verification ----------
 
 CITATION = re.compile(r"[\[(]\s*(pp?\.[^\])]*)[\])]")
-NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?%?")
+NUMBER = re.compile(r"(?<![\w.\-])\d+(?:\.\d+)?%?")
 
 
 def parse_pages(citation_text: str) -> set:
