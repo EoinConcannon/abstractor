@@ -13,7 +13,7 @@ load_dotenv()
 
 
 class LLMClient:
-    def __init__(self, api_key=None, base_url=None, model=None, max_retries=4):
+    def __init__(self, api_key=None, base_url=None, model=None, max_retries=6):
         self.api_key = api_key or os.getenv("LLM_API_KEY")
         self.base_url = base_url or os.getenv("LLM_BASE_URL")
         self.model = model or os.getenv("LLM_MODEL")
@@ -53,7 +53,7 @@ class LLMClient:
             except (RateLimitError, InternalServerError, APIConnectionError) as e:
                 if attempt == self.max_retries - 1:
                     raise
-                wait = 10 * 2 ** attempt
+                wait = min(10 * 2 ** attempt, 60)
                 print(f"{type(e).__name__}, waiting {wait}s (attempt {attempt + 1}/{self.max_retries})...")
                 time.sleep(wait)
         return ""

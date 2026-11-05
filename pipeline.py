@@ -3,13 +3,15 @@
 Usage:
     python pipeline.py papers/ca_rag.pdf            # run everything (reuses saved stages)
     python pipeline.py papers/ca_rag.pdf --force    # redo the summary even if one is saved
+    python pipeline.py papers/ca_rag.pdf --method single   # old one-big-prompt summary
     python pipeline.py papers/ca_rag.pdf --no-llm   # only extract + sections (no API call)
     python pipeline.py papers/ca_rag.pdf --refresh  # redo extraction + sections (keeps old summaries)
 
 Saves to data/<paper name>/:
     pages.json      extracted text per page
     sections.json   sections with page numbers
-    summary_<model>_<prompt hash>_<time>.md
+    summary_<method>_<model>_<prompt hash>_<time>.md
+    map_<model>_<prompt hash>.json   per-section notes (lets a failed map-reduce resume)
     verify_<same name>.md   number / page-citation check of that summary
 """
 import argparse
@@ -21,6 +23,7 @@ from datetime import datetime
 from pathlib import Path
 
 from extract import extract_pages
+from mapreduce import MAP_SYSTEM, MAP_USER, REDUCE_USER, summarize_mapreduce
 from sections import section_text, split_sections
 from summarize import SYSTEM_PROMPT, USER_TEMPLATE, build_paper_text
 
@@ -52,27 +55,41 @@ def get_sections(pdf_path: str, refresh: bool = False):
     return _load_or_build(paper_dir(pdf_path) / "sections.json", lambda: split_sections(pages), refresh)
 
 
-def prompt_hash() -> str:
+def prompt_hash(method: str) -> str:
     """Changing the prompt changes the hash, so old summaries are never reused by mistake."""
-    return hashlib.md5((SYSTEM_PROMPT + USER_TEMPLATE).encode("utf-8")).hexdigest()[:6]
+    if method == "single":
+        text = SYSTEM_PROMPT + USER_TEMPLATE
+    else:
+        text = SYSTEM_PROMPT + MAP_SYSTEM + MAP_USER + REDUCE_USER
+    return hashlib.md5(text.encode("utf-8")).hexdigest()[:6]
 
 
 def safe(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", name)
 
 
-def get_summary(pdf_path: str, llm, force: bool = False):
+def get_summary(pdf_path: str, llm, method: str = "mapreduce", force: bool = False):
     """Return (summary_path, summary_text, was_cached)."""
     d = paper_dir(pdf_path)
-    pattern = f"summary_{safe(llm.model)}_{prompt_hash()}_*.md"
+    h = prompt_hash(method)
+    pattern = f"summary_{method}_{safe(llm.model)}_{h}_*.md"
     existing = sorted(d.glob(pattern))
     if existing and not force:
         return existing[-1], existing[-1].read_text(encoding="utf-8"), True
 
-    paper = build_paper_text(get_sections(pdf_path))
-    print(f"Sending ~{len(paper.split())} words to {llm.model}...")
-    text = llm.complete(SYSTEM_PROMPT, USER_TEMPLATE.format(paper=paper))
-    path = d / f"summary_{safe(llm.model)}_{prompt_hash()}_{datetime.now():%Y%m%d-%H%M%S}.md"
+    sections = get_sections(pdf_path)
+    if method == "single":
+        paper = build_paper_text(sections)
+        print(f"Sending ~{len(paper.split())} words to {llm.model}...")
+        text = llm.complete(SYSTEM_PROMPT, USER_TEMPLATE.format(paper=paper))
+    else:
+        map_cache = d / f"map_{safe(llm.model)}_{h}.json"
+        if force and map_cache.exists():
+            map_cache.unlink()   # only the cache for this paper/model/prompt, nothing else
+        print(f"Map-reduce with {llm.model} (section notes are saved, so a failed run can resume)")
+        text = summarize_mapreduce(sections, llm, map_cache)
+
+    path = d / f"summary_{method}_{safe(llm.model)}_{h}_{datetime.now():%Y%m%d-%H%M%S}.md"
     path.write_text(text, encoding="utf-8")
     return path, text, False
 
@@ -150,6 +167,8 @@ def main():
     parser = argparse.ArgumentParser(description="Run the full paper pipeline.")
     parser.add_argument("pdf")
     parser.add_argument("--force", action="store_true", help="regenerate the summary")
+    parser.add_argument("--method", choices=["mapreduce", "single"], default="mapreduce",
+                        help="mapreduce = summarise each section then combine (default); single = one big prompt")
     parser.add_argument("--no-llm", action="store_true", help="stop after extract + sections")
     parser.add_argument("--refresh", action="store_true", help="redo extraction and sections, ignoring saved ones")
     args = parser.parse_args()
@@ -167,7 +186,7 @@ def main():
         return
 
     from llm import LLMClient  # imported here so --no-llm works without a key
-    path, summary, cached = get_summary(args.pdf, LLMClient(), force=args.force)
+    path, summary, cached = get_summary(args.pdf, LLMClient(), method=args.method, force=args.force)
     print(f"[3/4] Summary {'loaded from' if cached else 'saved to'} {path}")
 
     report = verify_summary(summary, pages)
