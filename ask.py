@@ -4,8 +4,10 @@ Usage:
     python ask.py papers/ca_rag.pdf "What embedding models did they use?"
     python ask.py papers/ca_rag.pdf                 # interactive: keep asking, blank line to quit
     python ask.py papers/ca_rag.pdf "..." --chunks  # show retrieved chunks only (no LLM call)
+    python ask.py papers/ca_rag.pdf --find blockchain   # exact word search over the whole text
 """
 import argparse
+import re
 import sys
 
 import pipeline
@@ -67,6 +69,7 @@ def answer_question(question, index, llm, k=6, chunks_only=False):
 
     answer = llm.complete(ASK_SYSTEM, ASK_USER.format(excerpts=format_excerpts(chunks), question=question))
     print("\n" + answer.strip())
+
     if answer.strip().lower().replace("\u2019", "'").startswith("the retrieved excerpts don't answer"):
         return  # no point listing sources for an answer that says there isn't one
 
@@ -79,6 +82,26 @@ def answer_question(question, index, llm, k=6, chunks_only=False):
         print(f"\nWarning: these numbers are not in the retrieved excerpts, so check them: {', '.join(missing)}")
 
 
+def find_term(term: str, pages, width: int = 60, max_per_page: int = 3):
+    """Literal, case-insensitive whole-word search over every page. Unlike retrieval, this is exhaustive,
+    so it is the right tool for 'does the paper mention X?' and 'how often?' questions."""
+    pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
+    total = 0
+    for page in pages:
+        text = page["text"]
+        hits = list(pattern.finditer(text))
+        total += len(hits)
+        for m in hits[:max_per_page]:
+            start, end = max(0, m.start() - width), min(len(text), m.end() + width)
+            print(f"  p. {page['page']}: ...{text[start:end]}...".replace("\n", " "))
+        if len(hits) > max_per_page:
+            print(f"  p. {page['page']}: (+{len(hits) - max_per_page} more on this page)")
+    if total:
+        print(f"\n'{term}' appears {total} time(s) in the extracted text.")
+    else:
+        print(f"'{term}' does not appear in the extracted text (tables, equations and images aren't searched).")
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="Ask questions about a research paper PDF.")
@@ -86,7 +109,12 @@ def main():
     parser.add_argument("question", nargs="?", help="leave out for interactive mode")
     parser.add_argument("-k", type=int, default=6, help="how many chunks to retrieve (default 6)")
     parser.add_argument("--chunks", action="store_true", help="show retrieved chunks only, no LLM call")
+    parser.add_argument("--find", metavar="TERM", help="exact word search over the whole paper, then exit")
     args = parser.parse_args()
+
+    if args.find:
+        find_term(args.find, pipeline.get_pages(args.pdf))
+        return
 
     sections = pipeline.get_sections(args.pdf)
     embedder = rag.load_embedder()
