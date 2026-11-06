@@ -10,6 +10,7 @@ Design choices (all deliberate, all worth explaining in the README):
 - If fastembed isn't installed the system falls back to BM25 only, and says so.
 """
 import hashlib
+import os
 import json
 import re
 from collections import defaultdict
@@ -17,6 +18,7 @@ from pathlib import Path
 
 import numpy as np
 from rank_bm25 import BM25Okapi
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 RRF_K = 60  # standard constant for reciprocal rank fusion
@@ -99,7 +101,7 @@ def load_embedder():
         from fastembed import TextEmbedding
     except ImportError:
         return None
-    return TextEmbedding(EMBED_MODEL)
+    return TextEmbedding(EMBED_MODEL, cache_dir=str(Path(__file__).parent / "models"))
 
 
 def _normalise(matrix: np.ndarray) -> np.ndarray:

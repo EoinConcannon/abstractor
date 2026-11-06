@@ -67,6 +67,8 @@ def answer_question(question, index, llm, k=6, chunks_only=False):
 
     answer = llm.complete(ASK_SYSTEM, ASK_USER.format(excerpts=format_excerpts(chunks), question=question))
     print("\n" + answer.strip())
+    if answer.strip().lower().replace("\u2019", "'").startswith("the retrieved excerpts don't answer"):
+        return  # no point listing sources for an answer that says there isn't one
 
     print("\nSources used:")
     for n, c in enumerate(chunks, 1):
