@@ -18,6 +18,7 @@ ASK_SYSTEM = """You answer questions about ONE research paper using only the exc
 Rules:
 - Use only the excerpts. If they do not contain the answer, say "The retrieved excerpts don't answer this" and suggest what to look for. Do not guess.
 - Cite the page(s) for every claim like (p. 5), using the page labels on the excerpts.
+- Cite pages only. Never refer to excerpt numbers (say "p. 5", not "Excerpt 3").
 - Quote numbers exactly as written. When a number comes from a table or experiment, say which one.
 - If excerpts disagree, report both with their context.
 - Plain text only: no LaTeX, no backticks.

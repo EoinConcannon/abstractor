@@ -6,3 +6,4 @@ output*.txt
 data/
 summaries/
 models/
+eval/results_*.json

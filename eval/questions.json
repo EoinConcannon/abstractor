@@ -1,0 +1,157 @@
+[
+  {
+    "paper": "Budget_Constrained_RAG",
+    "question": "What LLM and embedding model were used in the experiments?",
+    "pages": [
+      10
+    ],
+    "terms": [
+      "ChatGPT"
+    ]
+  },
+  {
+    "paper": "Budget_Constrained_RAG",
+    "question": "By how much does UCOSA outperform relevance-greedy selection?",
+    "pages": [
+      11
+    ],
+    "terms": [
+      "52%"
+    ]
+  },
+  {
+    "paper": "Budget_Constrained_RAG",
+    "question": "What chunk size was used in the experiments?",
+    "pages": [
+      10
+    ],
+    "terms": [
+      "1024"
+    ]
+  },
+  {
+    "paper": "Budget_Constrained_RAG",
+    "question": "How many times was each experiment repeated?",
+    "pages": [
+      11
+    ],
+    "terms": [
+      "100 times"
+    ]
+  },
+  {
+    "paper": "Budget_Constrained_RAG",
+    "question": "How many human experts took part in the human evaluation?",
+    "pages": [
+      12,
+      13
+    ],
+    "terms": [
+      "three human"
+    ]
+  },
+  {
+    "paper": "Budget_Constrained_RAG",
+    "question": "How much cheaper is LB-CaaS than RaaS in the toy example?",
+    "pages": [
+      4,
+      5
+    ],
+    "terms": [
+      "75%"
+    ]
+  },
+  {
+    "paper": "Budget_Constrained_RAG",
+    "question": "What does UCOSA stand for?",
+    "pages": [
+      1,
+      3
+    ],
+    "terms": [
+      "online selection algorithm"
+    ]
+  },
+  {
+    "paper": "Budget_Constrained_RAG",
+    "question": "Which similarity metric was used for retrieval?",
+    "pages": [
+      10
+    ],
+    "terms": [
+      "cosine similarity"
+    ]
+  },
+  {
+    "paper": "Budget_Constrained_RAG",
+    "question": "What are the two variants of chunk-as-a-service?",
+    "pages": [
+      1,
+      3
+    ],
+    "terms": [
+      "LB-CaaS"
+    ]
+  },
+  {
+    "paper": "Budget_Constrained_RAG",
+    "question": "What future work is planned on dynamic pricing?",
+    "pages": [
+      13
+    ],
+    "terms": [
+      "dynamic pricing"
+    ]
+  },
+  {
+    "paper": "Budget_Constrained_RAG",
+    "question": "Which baseline selection methods was UCOSA compared against?",
+    "pages": [
+      10
+    ],
+    "terms": [
+      "offline selection"
+    ]
+  },
+  {
+    "paper": "ca_rag",
+    "question": "What F1 score did CA-RAG with Contriever and fixed-size chunking get on TriviaQA?",
+    "pages": [
+      10
+    ],
+    "terms": [
+      "0.9089"
+    ]
+  },
+  {
+    "paper": "ca_rag",
+    "question": "What was the average time per question with semantic chunking?",
+    "pages": [
+      13
+    ],
+    "terms": [
+      "262.63"
+    ]
+  },
+  {
+    "paper": "ca_rag",
+    "question": "How does the semantic chunking algorithm decide when to start a new cluster?",
+    "pages": [
+      7
+    ],
+    "terms": [
+      "predefined threshold"
+    ]
+  },
+  {
+    "paper": "ca_rag",
+    "question": "Which LLM generates the answers in CA-RAG?",
+    "pages": [
+      7,
+      10
+    ],
+    "terms": [
+      "Zephyr"
+    ]
+  }
+]

@@ -10,15 +10,16 @@ Design choices (all deliberate, all worth explaining in the README):
 - If fastembed isn't installed the system falls back to BM25 only, and says so.
 """
 import hashlib
-import os
 import json
+import os
 import re
 from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
 from rank_bm25 import BM25Okapi
-os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")  # silence a harmless Windows warning
 
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 RRF_K = 60  # standard constant for reciprocal rank fusion
@@ -101,6 +102,7 @@ def load_embedder():
         from fastembed import TextEmbedding
     except ImportError:
         return None
+    # Keep the model inside the project (not in Windows Temp, which can be cleaned out).
     return TextEmbedding(EMBED_MODEL, cache_dir=str(Path(__file__).parent / "models"))
 
 
@@ -122,15 +124,19 @@ class PaperIndex:
     def mode(self) -> str:
         return "hybrid (BM25 + vectors)" if self.embeddings is not None else "BM25 only"
 
-    def search(self, question: str, k: int = 6, pool: int = 20):
-        """Return the top-k chunks, each with a 'score' and which searches found it."""
+    def search(self, question: str, k: int = 6, pool: int = 20, mode: str = "hybrid"):
+        """Return the top-k chunks, each with a 'score' and which searches found it.
+
+        mode is "hybrid" (default), "bm25" or "vector"; eval.py uses the other two to compare them.
+        """
         rankings = {}
 
-        bm = self.bm25.get_scores(tokenize(question))
-        order = np.argsort(-bm)[:pool]
-        rankings["bm25"] = [int(i) for i in order if bm[i] > 0]
+        if mode in ("hybrid", "bm25"):
+            bm = self.bm25.get_scores(tokenize(question))
+            order = np.argsort(-bm)[:pool]
+            rankings["bm25"] = [int(i) for i in order if bm[i] > 0]
 
-        if self.embeddings is not None and self.embedder is not None:
+        if mode in ("hybrid", "vector") and self.embeddings is not None and self.embedder is not None:
             q = np.array(list(self.embedder.query_embed([question]))[0], dtype=np.float32)
             q = q / max(np.linalg.norm(q), 1e-12)
             sims = self.embeddings @ q
