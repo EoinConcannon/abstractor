@@ -69,7 +69,7 @@
       3
     ],
     "terms": [
-      "online selection algorithm"
+      "utility-cost"
     ]
   },
   {
@@ -107,7 +107,10 @@
     "paper": "Budget_Constrained_RAG",
     "question": "Which baseline selection methods was UCOSA compared against?",
     "pages": [
-      10
+      1,
+      10,
+      11,
+      12
     ],
     "terms": [
       "offline selection"
@@ -148,6 +151,7 @@
     "question": "Which LLM generates the answers in CA-RAG?",
     "pages": [
       7,
+      9,
       10
     ],
     "terms": [

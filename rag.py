@@ -81,9 +81,29 @@ def chunk_text_for_search(chunk) -> str:
     return f"{chunk['section']}. {chunk['text']}"
 
 
+STOPWORDS = {
+    "a", "an", "the", "of", "in", "on", "for", "to", "and", "or", "by", "with", "from", "at", "as",
+    "is", "are", "was", "were", "be", "it", "this", "that", "these", "those", "their", "they",
+    "what", "which", "who", "how", "many", "much", "does", "do", "did", "paper",
+}
+
+
+def _stem(word: str) -> str:
+    """Very light plural stripping so 'baseline' matches 'baselines'. Numbers are left alone."""
+    if any(ch.isdigit() for ch in word):
+        return word
+    if len(word) > 4 and word.endswith("ies"):
+        return word[:-3] + "y"
+    if len(word) > 3 and word.endswith("s") and not word.endswith(("ss", "us", "is")):
+        return word[:-1]
+    return word
+
+
 def tokenize(text: str):
-    """Lowercase words; decimals such as 0.9089 stay in one piece so exact numbers are searchable."""
-    return re.findall(r"\d+\.\d+|\w+", text.lower())
+    """Lowercase words for keyword search. Decimals such as 0.9089 stay in one piece so exact numbers
+    are searchable; common question words are dropped and plurals are normalised."""
+    words = re.findall(r"\d+\.\d+|\w+", text.lower())
+    return [_stem(w) for w in words if w not in STOPWORDS]
 
 
 def format_pages(pages) -> str:
