@@ -4,3 +4,4 @@ python-dotenv
 numpy
 rank_bm25
 fastembed
+streamlit

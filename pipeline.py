@@ -68,26 +68,34 @@ def safe(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", name)
 
 
-def get_summary(pdf_path: str, llm, method: str = "mapreduce", force: bool = False):
-    """Return (summary_path, summary_text, was_cached)."""
+def cached_summary(pdf_path: str, model: str, method: str = "mapreduce"):
+    """Return (path, text) of the newest saved summary for this paper/model/method/prompt, or None."""
+    d = paper_dir(pdf_path)
+    existing = sorted(d.glob(f"summary_{method}_{safe(model)}_{prompt_hash(method)}_*.md"))
+    if not existing:
+        return None
+    return existing[-1], existing[-1].read_text(encoding="utf-8")
+
+
+def get_summary(pdf_path: str, llm, method: str = "mapreduce", force: bool = False, progress=print):
+    """Return (summary_path, summary_text, was_cached). progress(msg) is called with status messages."""
     d = paper_dir(pdf_path)
     h = prompt_hash(method)
-    pattern = f"summary_{method}_{safe(llm.model)}_{h}_*.md"
-    existing = sorted(d.glob(pattern))
-    if existing and not force:
-        return existing[-1], existing[-1].read_text(encoding="utf-8"), True
+    saved = cached_summary(pdf_path, llm.model, method)
+    if saved and not force:
+        return saved[0], saved[1], True
 
     sections = get_sections(pdf_path)
     if method == "single":
         paper = build_paper_text(sections)
-        print(f"Sending ~{len(paper.split())} words to {llm.model}...")
+        progress(f"Sending ~{len(paper.split())} words to {llm.model}...")
         text = llm.complete(SYSTEM_PROMPT, USER_TEMPLATE.format(paper=paper))
     else:
         map_cache = d / f"map_{safe(llm.model)}_{h}.json"
         if force and map_cache.exists():
             map_cache.unlink()   # only the cache for this paper/model/prompt, nothing else
-        print(f"Map-reduce with {llm.model} (section notes are saved, so a failed run can resume)")
-        text = summarize_mapreduce(sections, llm, map_cache)
+        progress(f"Map-reduce with {llm.model} (section notes are saved, so a failed run can resume)")
+        text = summarize_mapreduce(sections, llm, map_cache, progress=progress)
 
     path = d / f"summary_{method}_{safe(llm.model)}_{h}_{datetime.now():%Y%m%d-%H%M%S}.md"
     path.write_text(text, encoding="utf-8")
@@ -133,7 +141,7 @@ def verify_summary(summary: str, pages) -> str:
         findings = []
         for num in NUMBER.findall(body):
             # Skip small whole numbers ("3 bullets", "Scenario 2"); they are noise.
-            if "." not in num and "%" not in num and len(num) < 3:
+            if "." not in num and "%" not in num and len(num) < 2:
                 continue
             on_cited = [p for p in sorted(cited) if p in page_text and page_has_number(page_text[p], num)]
             anywhere = [p for p, t in sorted(page_text.items()) if page_has_number(t, num)]

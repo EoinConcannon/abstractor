@@ -59,44 +59,58 @@ def show_chunks(chunks):
         print("    " + c["text"][:300].replace("\n", " ") + ("..." if len(c["text"]) > 300 else ""))
 
 
-def answer_question(question, index, llm, k=6, chunks_only=False):
+def get_answer(question, index, llm, k=6):
+    """Retrieve, ask the LLM, and return everything the caller needs (no printing)."""
     chunks = index.search(question, k=k)
-    if chunks_only:
-        show_chunks(chunks)
-        return
     if not chunks:
-        print("Nothing in the paper matched that question.")
+        return {"answer": "Nothing in the paper matched that question.", "chunks": [],
+                "missing": [], "answered": False}
+    answer = llm.complete(ASK_SYSTEM, ASK_USER.format(excerpts=format_excerpts(chunks), question=question)).strip()
+    declined = answer.lower().replace("\u2019", "'").startswith("the retrieved excerpts don't answer")
+    missing = [] if declined else unsupported_numbers(answer, chunks)
+    return {"answer": answer, "chunks": chunks, "missing": missing, "answered": not declined}
+
+
+def answer_question(question, index, llm, k=6, chunks_only=False):
+    if chunks_only:
+        show_chunks(index.search(question, k=k))
         return
 
-    answer = llm.complete(ASK_SYSTEM, ASK_USER.format(excerpts=format_excerpts(chunks), question=question))
-    print("\n" + answer.strip())
-
-    if answer.strip().lower().replace("\u2019", "'").startswith("the retrieved excerpts don't answer"):
+    result = get_answer(question, index, llm, k=k)
+    print("\n" + result["answer"])
+    if not result["answered"]:
         return  # no point listing sources for an answer that says there isn't one
 
     print("\nSources used:")
-    for n, c in enumerate(chunks, 1):
+    for n, c in enumerate(result["chunks"], 1):
         print(f"  [{n}] {c['section']}, {rag.format_pages(c['pages'])}")
+    if result["missing"]:
+        print(f"\nWarning: these numbers are not in the retrieved excerpts, so check them: "
+              f"{', '.join(result['missing'])}")
 
-    missing = unsupported_numbers(answer, chunks)
-    if missing:
-        print(f"\nWarning: these numbers are not in the retrieved excerpts, so check them: {', '.join(missing)}")
 
-
-def find_term(term: str, pages, width: int = 60, max_per_page: int = 3):
+def find_hits(term: str, pages, width: int = 60, max_per_page: int = 3):
     """Literal, case-insensitive whole-word search over every page. Unlike retrieval, this is exhaustive,
-    so it is the right tool for 'does the paper mention X?' and 'how often?' questions."""
+    so it is the right tool for 'does the paper mention X?' and 'how often?' questions.
+    Returns (total_count, [(page, snippet), ...])."""
     pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
-    total = 0
+    total, shown = 0, []
     for page in pages:
         text = page["text"]
         hits = list(pattern.finditer(text))
         total += len(hits)
         for m in hits[:max_per_page]:
             start, end = max(0, m.start() - width), min(len(text), m.end() + width)
-            print(f"  p. {page['page']}: ...{text[start:end]}...".replace("\n", " "))
+            shown.append((page["page"], f"...{text[start:end]}...".replace("\n", " ")))
         if len(hits) > max_per_page:
-            print(f"  p. {page['page']}: (+{len(hits) - max_per_page} more on this page)")
+            shown.append((page["page"], f"(+{len(hits) - max_per_page} more on this page)"))
+    return total, shown
+
+
+def find_term(term: str, pages, width: int = 60, max_per_page: int = 3):
+    total, shown = find_hits(term, pages, width, max_per_page)
+    for page, snippet in shown:
+        print(f"  p. {page}: {snippet}")
     if total:
         print(f"\n'{term}' appears {total} time(s) in the extracted text.")
     else:
