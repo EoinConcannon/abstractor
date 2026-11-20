@@ -164,10 +164,3 @@ eval/questions.json   evaluation questions
 ```
 
 `papers/`, `data/`, `models/` and `.env` are git-ignored.
-
-## What I would do next
-
-- Automated tests and a CI workflow.
-- Re-run the evaluation after the question fixes, with more questions written in my own words rather than the paper's.
-- Clean up page-1 licence footnotes and equation debris that leak into chunks.
-- Deploy a demo where visitors supply their own API key.
