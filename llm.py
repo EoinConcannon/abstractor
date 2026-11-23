@@ -36,8 +36,8 @@ class LLMClient:
         """Send one system + user message and return the reply text.
 
         Free tiers are flaky: 429 means you hit a rate limit, 503 means the
-        provider is overloaded. Both are temporary, so wait and retry with
-        exponential backoff instead of crashing.
+        provider is overloaded, and connections can time out. All are temporary,
+        so wait and retry with exponential backoff instead of crashing.
         """
         for attempt in range(self.max_retries):
             try:

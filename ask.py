@@ -93,7 +93,7 @@ def find_hits(term: str, pages, width: int = 60, max_per_page: int = 3):
     """Literal, case-insensitive whole-word search over every page. Unlike retrieval, this is exhaustive,
     so it is the right tool for 'does the paper mention X?' and 'how often?' questions.
     Returns (total_count, [(page, snippet), ...])."""
-    pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
+    pattern = re.compile(rf"(?<!\w){re.escape(term)}(?!\w)", re.IGNORECASE)
     total, shown = 0, []
     for page in pages:
         text = page["text"]
