@@ -7,3 +7,4 @@ data/
 summaries/
 models/
 eval/results_*.json
+.pytest_cache/
